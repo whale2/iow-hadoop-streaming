@@ -1,0 +1,16 @@
+Format: http://dep.debian.net/deps/dep5
+Upstream-Name: hadoop2-iow-lib
+Source: https://hg.iponweb.net/u-etl/hadoop-lib
+
+Files: *
+Copyright: 2009-2014 IPONWEB Ltd. All rights reserved
+License: other
+ This is a commercial software. IponWeb UK Ltd. hereby grants you a
+ limited, non-commercial, non-exclusive, non-sublicensable,
+ non-assignable, free of charge license to download, install and use
+ this software on your computer for the sole purpose of automate usage
+ of 134ms.com service provided by IponWeb UK Ltd. You agree that you
+ will not sell, assign, rent, lease, distribute, export, import, act
+ as an intermediary or provider, or otherwise grant rights to third
+ parties with regard to the IponWeb UK Ltd. software or any part
+ thereof.

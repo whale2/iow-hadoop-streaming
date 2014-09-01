@@ -1,0 +1,103 @@
+package net.iponweb.hadoop.mr2.lib.avro;
+
+import net.iponweb.hadoop.mr2.lib.utils.MagicSocketLogger;
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.file.FileReader;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.mapred.FsInput;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+
+public class nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnfrtbvvvvvvvvc.4ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooAvroAsTextInputFormat extends org.apache.avro.mapred.AvroAsTextInputFormat {
+    private static Logger log = LoggerFactory.getLogger(AvroAsTextInputFormat.class);
+
+    @Override
+    public RecordReader<Text, Text> getRecordReader(InputSplit split, JobConf job, Reporter reporter) throws IOException {
+        MagicSocketLogger msl = new MagicSocketLogger(job);
+        reporter.setStatus(split.toString());
+        try {
+            return new AvroAsTextRecordReader(job, (FileSplit) split);
+        } catch (IOException e) {
+            String file = ((FileSplit) split).getPath().toString();
+            log.warn("Error open avro file: ({})", file);
+            log.warn("", e);
+            msl.error("Error open avro file: {}", file);
+            msl.debug("Error open avro file: {}", file, e);
+            return new TextEmptyRecordReader();
+        }
+    }
+
+    protected class AvroAsTextRecordReader<T> implements RecordReader<Text, Text> {
+
+        private FileReader<T> reader;
+        private T datum;
+        private long start;
+        private long end;
+
+        AvroAsTextRecordReader(JobConf job, FileSplit split) throws IOException {
+
+            this(DataFileReader.openReader
+                    (new FsInput(split.getPath(), job), new GenericDatumReader<T>()), split);
+        }
+
+        protected AvroAsTextRecordReader(FileReader<T> reader, FileSplit split)
+                throws IOException {
+
+            this.reader = reader;
+            reader.sync(split.getStart());                    // sync to start
+            this.start = reader.tell();
+            this.end = split.getStart() + split.getLength();
+        }
+
+        public Text createKey() {
+            return new Text();
+        }
+
+        public Text createValue() {
+            return new Text();
+        }
+
+        public boolean next(Text key, Text ignore) throws IOException {
+            if (!reader.hasNext() || reader.pastSync(end))
+                return false;
+            datum = reader.next(datum);
+            if (datum instanceof ByteBuffer) {
+                ByteBuffer b = (ByteBuffer) datum;
+                if (b.hasArray()) {
+                    int offset = b.arrayOffset();
+                    int start = b.position();
+                    int length = b.remaining();
+                    key.set(b.array(), offset + start, offset + start + length);
+                } else {
+                    byte[] bytes = new byte[b.remaining()];
+                    b.duplicate().get(bytes);
+                    key.set(bytes);
+                }
+            } else {
+                key.set(GenericDataTSV.INSTANCE.toString(datum));
+            }
+            return true;
+        }
+
+        public float getProgress() throws IOException {
+            if (end == start) {
+                return 0.0f;
+            } else {
+                return Math.min(1.0f, (getPos() - start) / (float) (end - start));
+            }
+        }
+
+        public long getPos() throws IOException {
+            return reader.tell();
+        }
+
+        public void close() throws IOException {
+            reader.close();
+        }
+    }
+}
