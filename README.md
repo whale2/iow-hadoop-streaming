@@ -9,4 +9,9 @@ then feed into streaming MapRed job as input.
 Output formats for converting text or json output of streaming MapRed jobs and store it in Avro or Parquet.
 Output format that can write to many files based on record prefix and can be combined with above output formats
 
+Heavily based on code from ASF (http://www.apache.org/)
 
+Credits to:
+
+Vladimir Klimontovich <vklimontovich@getintent.com>
+Evgeny Terentiev <terentev@gmail.com>
