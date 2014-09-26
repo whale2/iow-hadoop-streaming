@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>net.iponweb.hadoop.streaming</groupId>
-    <artifactId>hadoop2-iow-lib</artifactId>
+    <artifactId>iow-hadoop-streaming</artifactId>
     <version>1.0</version>
     <packaging>jar</packaging>
     
