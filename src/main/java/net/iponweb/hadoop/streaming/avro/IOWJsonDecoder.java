@@ -1,3 +1,24 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Modified in IPONWEB, 2014
+ *
+ */
+
 package net.iponweb.hadoop.streaming.avro;
 
 import org.apache.avro.AvroTypeException;
@@ -19,8 +40,8 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 /* This class is based on original JsonDecoder from Avro with attempt to
- * handle complex schemas. With somewhat limited success it can. Known limitations
- * are schemas with union of two or more records or two or more arrays.
+ * handle complex schemas. With somewhat limited success it can. Known limitation
+ * is schema with union of two or more named records or other named types.
  * Simpler unions seem to work well based on experience of running this on prod servers
  * And we can convert "NaN" back to NaN if it is placed in double or float fields
  */
