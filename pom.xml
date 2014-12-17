@@ -4,14 +4,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>net.iponweb.hadoop.streaming</groupId>
-    <artifactId>iow-hadoop-streaming</artifactId>
+    <groupId>net.ipowneb.hadoop.mr2</groupId>
+    <artifactId>hadoop2-iow-lib</artifactId>
     <version>1.0</version>
     <packaging>jar</packaging>
     
     <properties>
       <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-      <org.apache.hadoop.version>2.0.0-cdh4.6.0</org.apache.hadoop.version>
+      <org.apache.hadoop.version>2.3.0-cdh5.1.0</org.apache.hadoop.version>
     </properties>
 
   <build>
@@ -60,11 +60,46 @@
             <configuration>
               <excludeGroupIds>org.apache.hadoop.thirdparty.guava</excludeGroupIds>
               <excludeArtifactIds>
+                activation,
+                apacheds-i18n,
+                apacheds-i18n-2.0.0-M15,
+                apacheds-kerberos-codec,
+                apacheds-kerberos-codec-2.0.0-M15,
+                api-asn1-api,
+                api-asn1-api-1.0.0-M20,
+                api-util,
+                api-util-1.0.0-M20,
                 avro,
                 avro-ipc,
                 avro-mapred,
+                ant-contrib,
+                asm,
+                aspectjrt,
+                aspectjtools,
+                commons-beanutils,
+                commons-beanutils-core,
+                commons-collections,
+                commons-compress,
+                commons-configuration,
+                commons-digester,
+                commons-cli, 
+                commons-codec,
+                commons-daemon,
+                commons-el,
+                commons-httpclient,
+                commons-io,
+                commons-lang,
+                commons-logging,
+                commons-logging-api,
+                commons-net,
+                commons-math3,
+                core,
+                cloudera-jets3t,
                 fest-assert,
-                fest-util,  
+                fest-util,
+                gson,
+                guava-r09-jarjar,
+                guava,
                 hadoop-auth,
                 hadoop-core,
                 hadoop-client,
@@ -82,25 +117,7 @@
                 hadoop-yarn-client,
                 hadoop-yarn-common,
                 hadoop-yarn-api,
-                hadoop-yarn-server-common,
-                ant-contrib,
-                asm,
-                aspectjrt,
-                aspectjtools,
-                commons-cli, 
-                commons-codec,
-                commons-daemon,
-                commons-el,
-                commons-httpclient,
-                commons-io,
-                commons-lang,
-                commons-logging,
-                commons-logging-api,
-                commons-net,
-                core,
-                cloudera-jets3t,
-                guava-r09-jarjar,
-                guava,
+                hadoop-yarn-server-common,                
                 hsqldb,
                 jackson-jaxrs,
                 jackson-xc,
@@ -110,6 +127,7 @@
                 jasper-runtime,    
                 jaxb-api,
                 jaxb-impl,
+                java-xmlbuilder,
                 jersey-core,       
                 jersey-json,       
                 jersey-server,     
@@ -117,9 +135,12 @@
                 jetty, 
                 jetty-servlet-tester,
                 jetty-util,
+                jettison,
                 jsch,
                 junit,
                 jdk.tools,
+                jsp-api,
+                jsr305,
                 log4j,
                 mockito-all,
                 netty,
@@ -132,12 +153,16 @@
                 parquet-generator,
                 parquet-hadoop,
                 parquet-jackson,
+                paranamer,
+                protobuf-java,
+                stax-api,
                 servlet-api,
                 servlet-api-2.5,
                 slf4j-log4j12,
                 slf4j-api,
                 snappy-java,
                 xmlenc,
+                xz,
                 zookeeper,
               </excludeArtifactIds>
             </configuration>
@@ -237,22 +262,22 @@
     <dependency>
       <groupId>com.twitter</groupId>
       <artifactId>parquet-hadoop</artifactId>
-      <version>1.2.5</version>
+      <version>1.5.0</version>
     </dependency>
     <dependency>
       <groupId>com.twitter</groupId>
       <artifactId>parquet-column</artifactId>
-      <version>1.2.5</version>
+      <version>1.5.0</version>
     </dependency>
     <dependency>
       <groupId>com.twitter</groupId>
       <artifactId>parquet-common</artifactId>
-      <version>1.2.5</version>
+      <version>1.5.0</version>
     </dependency>
     <dependency>
       <groupId>com.twitter</groupId>
       <artifactId>parquet-format</artifactId>
-      <version>1.0.0</version>
+      <version>2.1.0</version>
     </dependency>
       <dependency>
           <groupId>org.apache.mrunit</groupId>
@@ -277,8 +302,8 @@
       </dependency>
       <dependency>
           <groupId>org.apache.hbase</groupId>
-          <artifactId>hbase</artifactId>
-          <version>0.94.15-cdh4.6.0</version>
+          <artifactId>hbase-client</artifactId>
+          <version>0.98.1-cdh5.1.0</version>
       </dependency>
   </dependencies>
   
@@ -310,6 +335,28 @@
   </repositories> 
 
   <profiles>
+    <profile>
+      <id>console</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>  
+            <version>2.3.2</version>
+            <configuration>
+              <archive>
+                <manifest>
+                  <addClasspath>true</addClasspath>
+                  <classpathPrefix>${user.home}/.m2/repository/</classpathPrefix>
+                  <classpathLayoutType>repository</classpathLayoutType>
+                  <mainClass>net.iponweb.hadoop.console.SequenceFileReader</mainClass>
+                </manifest>
+              </archive>   
+            </configuration>
+          </plugin>
+        </plugins> 
+      </build>
+    </profile>
     <profile> 
       <id>deb</id>
       <build>
@@ -327,14 +374,14 @@
                 <configuration>
                   <verbose>true</verbose>
                   <controlDir>${basedir}/src/deb/control</controlDir>
-                  <deb>[[buildDir]]/[[artifactId]]-[[version]]_[[version]]_all.[[extension]]</deb>
+                  <deb>[[buildDir]]/[[artifactId]]-[[version]]_all.[[extension]]</deb>
                   <dataSet>
                     <data> 
                       <src>${project.build.directory}/${project.build.finalName}.jar</src>
                       <type>file</type>
                       <mapper>
                         <type>perm</type>
-                        <prefix>/usr/lib/hadoop-iow-lib/${project.version}</prefix>
+                        <prefix>/usr/lib/hadoop2-iow-lib/${project.version}</prefix>
                         <user>loader</user>
                         <group>loader</group>
                       </mapper>
@@ -344,12 +391,68 @@
                       <type>directory</type>
                       <mapper>
                         <type>perm</type>
-                        <prefix>/usr/lib/hadoop-iow-lib/${project.version}</prefix>
+                        <prefix>/usr/lib/hadoop2-iow-lib/${project.version}</prefix>
                         <user>loader</user>
                         <group>loader</group>
                       </mapper>
                     </data>
                   </dataSet>
+                </configuration>
+              </execution>
+            </executions> 
+          </plugin>
+        </plugins> 
+      </build>
+    </profile>
+    <profile> 
+      <id>small</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>1.2.1</version>
+            <executions>
+              <execution>
+                <id>copy-jar</id>
+                <phase>install</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>rsync</executable>
+                  <workingDirectory>${basedir}</workingDirectory>
+                  <commandlineArgs>
+                    -av target/${project.build.finalName}.jar small.etl.iponweb.net:~/lib/
+                  </commandlineArgs>
+                </configuration>
+              </execution>
+              <execution> 
+                <id>copy-dependency</id>
+                <phase>install</phase>  
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>rsync</executable>
+                  <workingDirectory>${basedir}</workingDirectory>
+                  <commandlineArgs>
+                    -av target/dependency/ small.etl.iponweb.net:~/lib/
+                  </commandlineArgs>
+                </configuration>
+              </execution>
+              <execution> 
+                <id>copy-to-snapshot</id>
+                <phase>install</phase>   
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>ssh</executable>
+                  <workingDirectory>${basedir}</workingDirectory>
+                  <commandlineArgs>
+                    -t -t small.etl.iponweb.net 'sudo cp ~/lib/* /usr/lib/hadoop-iow-lib/snapshot'
+                  </commandlineArgs>
                 </configuration>
               </execution>
             </executions> 
