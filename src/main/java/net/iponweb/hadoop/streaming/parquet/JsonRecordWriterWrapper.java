@@ -1,26 +1,11 @@
-/**
- * Copyright 2014 IPONWEB
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-package net.iponweb.hadoop.streaming.parquet;
+package net.iponweb.hadoop.mr2.lib.parquet;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.Progressable;
 import parquet.example.data.Group;
 import parquet.hadoop.ParquetRecordWriter;
+import parquet.io.InvalidRecordException;
 import parquet.org.codehaus.jackson.JsonNode;
 import parquet.org.codehaus.jackson.map.ObjectMapper;
 import parquet.schema.PrimitiveType;
@@ -54,10 +39,7 @@ public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V>
             Iterator<PathAction> ai = recorder.iterator();
 
             Stack<Group> savedGroup = new Stack<Group>();
-            savedGroup.push(grp);
-
             Stack<JsonNode> savedNode = new Stack<JsonNode>();
-            savedNode.push(node);
 
             while (ai.hasNext()) {
 
@@ -83,11 +65,11 @@ public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V>
                         PrimitiveType.PrimitiveTypeName primType = a.getType();
 
                         try {
-                            if (node.isNull()) {
+                            if (stubNode == null || stubNode.isNull()) {
                                 if (a.getRepetition() == Type.Repetition.OPTIONAL)
                                     continue;
                                 else
-                                    throw new NullPointerException("json column '" +
+                                    throw new InvalidRecordException("json column '" +
                                             colName + "' is null, while defined as non-optional in parquet schema");
                             }
 
