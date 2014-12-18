@@ -1,4 +1,4 @@
-package net.iponweb.hadoop.mr2.lib.parquet;
+package net.iponweb.hadoop.streaming.parquet;
 
 import com.google.common.base.Joiner;
 import org.apache.hadoop.io.Text;

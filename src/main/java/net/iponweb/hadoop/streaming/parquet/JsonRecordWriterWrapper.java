@@ -1,4 +1,4 @@
-package net.iponweb.hadoop.mr2.lib.parquet;
+package net.iponweb.hadoop.streaming.parquet;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.mapred.JobConf;
