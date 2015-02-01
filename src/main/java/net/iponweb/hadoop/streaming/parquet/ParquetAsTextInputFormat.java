@@ -13,6 +13,7 @@ import parquet.hadoop.ParquetInputSplit;
 import parquet.hadoop.ParquetRecordReader;
 import parquet.hadoop.api.ReadSupport;
 import parquet.hadoop.mapred.Container;
+import parquet.schema.PrimitiveType;
 import parquet.schema.Type;
 
 import java.io.DataInput;
@@ -109,9 +110,25 @@ public class ParquetAsTextInputFormat<K, V> extends org.apache.hadoop.mapred.Fil
         for (int n = 0; n < grp.getType().getFieldCount(); n ++) {
 
             Type field = grp.getType().getType(n);
-            if (field.isPrimitive()) {
                 try {
-                    s.add(grp.getValueToString(n, 0));
+                    if (!field.isPrimitive())
+                       s.addAll(groupToStrings((SimpleGroup) grp.getGroup(n, 0))); // array of groups not (yet) supported
+                    else if (field.getRepetition() == Type.Repetition.REPEATED) {
+
+                        boolean is_binary =
+                            field.asPrimitiveType().getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.BINARY;
+                        StringBuilder sb = new StringBuilder("[");
+                        ArrayList<String> arr = new ArrayList<String>();
+                        for (int i = 0; i < grp.getFieldRepetitionCount(n); i ++)
+                            arr.add(is_binary ? "\"" + grp.getValueToString(n, i) + "\"" :
+                                grp.getValueToString(n, i));
+
+                        sb.append(Joiner.on(",").join(arr));
+                        sb.append("]");
+                        s.add(sb.toString());
+                    }
+                    else
+                        s.add(grp.getValueToString(n, 0));
                 }
                 catch (RuntimeException e) {
                     if(e.getMessage().startsWith("not found") && field.getRepetition() == Type.Repetition.OPTIONAL)
@@ -119,9 +136,6 @@ public class ParquetAsTextInputFormat<K, V> extends org.apache.hadoop.mapred.Fil
                     else
                         throw e;
                 }
-            } else {
-                s.addAll(groupToStrings((SimpleGroup) grp.getGroup(n, 0)));
-            }
         }
 
         return s;

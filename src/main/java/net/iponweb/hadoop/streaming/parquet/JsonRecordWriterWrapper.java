@@ -12,6 +12,7 @@ import parquet.schema.PrimitiveType;
 import parquet.schema.Type;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Stack;
 
@@ -73,29 +74,54 @@ public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V>
                                             colName + "' is null, while defined as non-optional in parquet schema");
                             }
 
-                            switch (primType) {
+                            // If we have 'repeated' field, assume that we should expect JSON-encoded array
+                            // Convert array and append all values
 
-                                case INT32:
-                                    grp.append(colName, stubNode.getIntValue());
-                                    break;
-                                case INT64:
-                                case INT96:
-                                    grp.append(colName, stubNode.getLongValue());
-                                    break;
-                                case DOUBLE:
-                                    grp.append(colName, stubNode.getDoubleValue());
-                                    break;
-                                case FLOAT:
-                                    grp.append(colName, (float) stubNode.getDoubleValue());
-                                    break;
-                                case BOOLEAN:
-                                    grp.append(colName, stubNode.getBooleanValue());
-                                    break;
-                                case BINARY:
-                                    grp.append(colName, stubNode.getTextValue());
-                                    break;
-                                default:
-                                    throw new RuntimeException("Can't handle type " + primType);
+                            int repetition = 1;
+                            boolean repeated = false;
+                            ArrayList<JsonNode> s_vals = null;
+                            if (a.getRepetition() == Type.Repetition.REPEATED) {
+                                repeated = true;
+                                s_vals = new ArrayList();
+                                Iterator <JsonNode> itr = node.iterator();
+                                repetition = 0;
+                                while(itr.hasNext()) {
+                                    s_vals.add(itr.next());  // No array-of-objects!
+                                    repetition ++;
+                                }
+                            }
+
+                            for (int j = 0; j < repetition; j ++) {
+
+                                if (repeated) {
+                                    // extract new s
+                                    stubNode = s_vals.get(j);
+                                }
+
+                                switch (primType) {
+
+                                    case INT32:
+                                        grp.append(colName, stubNode.getIntValue());
+                                        break;
+                                    case INT64:
+                                    case INT96:
+                                        grp.append(colName, stubNode.getLongValue());
+                                        break;
+                                    case DOUBLE:
+                                        grp.append(colName, stubNode.getDoubleValue());
+                                        break;
+                                    case FLOAT:
+                                        grp.append(colName, (float) stubNode.getDoubleValue());
+                                        break;
+                                    case BOOLEAN:
+                                        grp.append(colName, stubNode.getBooleanValue());
+                                        break;
+                                    case BINARY:
+                                        grp.append(colName, stubNode.getTextValue());
+                                        break;
+                                    default:
+                                        throw new RuntimeException("Can't handle type " + primType);
+                                }
                             }
                         } catch (Exception e) {
 

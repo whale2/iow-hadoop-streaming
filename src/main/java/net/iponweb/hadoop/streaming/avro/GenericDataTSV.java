@@ -16,9 +16,14 @@
 
 package net.iponweb.hadoop.streaming.avro;
 
+import com.google.common.base.Joiner;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import parquet.org.codehaus.jackson.JsonNode;
+import parquet.org.codehaus.jackson.JsonProcessingException;
+import parquet.org.codehaus.jackson.map.ObjectMapper;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -26,12 +31,12 @@ import java.util.List;
 
 public class GenericDataTSV extends GenericData {
 
-    GenericData.Record getDatum(String tsv, Schema s) {
+    GenericData.Record getDatum(String tsv, Schema s) throws IOException, JsonProcessingException {
         List<String> tsvStrings = Arrays.asList(tsv.split("\t",-1));
         return getDatum(tsvStrings.iterator(), s);
     }
 
-    GenericData.Record getDatum(Iterator<String> tsvi, Schema s) {
+    GenericData.Record getDatum(Iterator<String> tsvi, Schema s) throws IOException, JsonProcessingException {
 
         List<Schema.Field> fields = s.getFields();
         GenericData.Record innerDatum = new Record(s);
@@ -54,10 +59,15 @@ public class GenericDataTSV extends GenericData {
                     Iterator<Schema> br = branches.iterator();
                     boolean hasNull = false;
                     boolean hasString = false;
+                    boolean hasArray = false;
                     Schema payload = null;
                     while (br.hasNext()) {
                         Schema bs = br.next();
                         switch (bs.getType()) {
+                            case ARRAY:
+                                hasArray = true; // Currently we only support [array,null] case
+                                payload = bs.getElementType();
+                                break;
                             case NULL:
                                 hasNull = true;
                                 break;
@@ -71,8 +81,29 @@ public class GenericDataTSV extends GenericData {
                     // If we have string branch - put the data because string can handle everything
                     // If we haven't string, but have null and data is empty string - put null
                     // Otherwise try to put primitive as is
+                    // But if we have an array, put already-json-encoded array
+                    if (hasArray && !t.equals("")) { // assuming that array is already json-encoded
+                        ObjectMapper mapper = new ObjectMapper();
+                        JsonNode node = mapper.readTree(t);
+                        Iterator <JsonNode> i = node.iterator();
+                        GenericData.Array arr = new GenericData.Array(node.size(), Schema.createArray(payload));
+                        while(i.hasNext()) {
+                            switch (payload.getType()) {
+                                case INT:
+                                    arr.add(i.next().getIntValue());
+                                    break;
+                                case FLOAT:
+                                case DOUBLE:
+                                    arr.add(i.next().getDoubleValue());
+                                    break;
+                                default:
+                                    arr.add(i.next().getTextValue());  // No array-of-objects!
+                            }
+                        }
 
-                    if (hasString) {
+                        innerDatum.put(m,arr);
+                    }
+                    else if (hasString) {
                         innerDatum.put(m, t);
                     }
                     else if (hasNull && t.equals("")) {
@@ -157,6 +188,33 @@ public class GenericDataTSV extends GenericData {
                     break;
                 case NULL:
                     break;
+                case UNION:
+                    // all fields are wrapped into unions...
+                    // TODO: Implement schema caching of some sort!!11
+
+                    boolean hasArray = false;
+                    List<Schema> tps = f.schema().getTypes();
+                    Iterator<Schema> tt = tps.iterator();
+                    Schema arraySchema = null;
+                    while(tt.hasNext())
+                        if((arraySchema = tt.next()).getType() == Schema.Type.ARRAY)
+                            hasArray = true;
+
+                    if (hasArray && !val.toString().equals("null")) {
+                        sb.append("[");
+                        ArrayList arr = new ArrayList();
+                        Schema.Type s = arraySchema.getElementType().getType();
+                        Iterator it = ((GenericDataTSV.Array) val).iterator();
+                        while (it.hasNext())
+                            arr.add(s == Schema.Type.STRING ?
+                                    "\"" + it.next() + "\"" : it.next());
+
+                        sb.append(Joiner.on(",").join(arr));
+                        sb.append("]");
+                        break;
+                    }
+
+
                 default:
                     if (val != null)
                         sb.append(val.toString());
@@ -186,6 +244,32 @@ public class GenericDataTSV extends GenericData {
                     break;
                 case NULL:
                     break;
+                case UNION:
+
+                    // all fields are wrapped into unions...
+
+                    boolean hasArray = false;
+                    List<Schema> tps = f.schema().getTypes();
+                    Iterator<Schema> tt = tps.iterator();
+                    Schema arraySchema = null;
+                    while(tt.hasNext())
+                        if((arraySchema = tt.next()).getType() == Schema.Type.ARRAY)
+                            hasArray = true;
+
+                    if (hasArray && !val.toString().equals("null")) {
+                        sb.append("[");
+                        ArrayList arr = new ArrayList();
+                        Schema.Type s = arraySchema.getElementType().getType();
+                        Iterator it = ((GenericDataTSV.Array) val).iterator();
+                        while (it.hasNext())
+                            arr.add(s == Schema.Type.STRING ?
+                                    "\"" + it.next() + "\"" : it.next());
+
+                        sb.append(Joiner.on(",").join(arr));
+                        sb.append("]");
+                        break;
+                    }
+
                 default:
                     if (val != null)
                         sb.append(val.toString());

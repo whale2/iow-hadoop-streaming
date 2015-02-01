@@ -27,6 +27,8 @@ import parquet.example.data.Group;
 import parquet.example.data.simple.SimpleGroupFactory;
 import parquet.hadoop.ParquetRecordWriter;
 import parquet.io.api.Binary;
+import parquet.org.codehaus.jackson.JsonNode;
+import parquet.org.codehaus.jackson.map.ObjectMapper;
 import parquet.schema.MessageType;
 import parquet.schema.PrimitiveType;
 import parquet.schema.Type;
@@ -150,34 +152,60 @@ public class TextRecordWriterWrapper<K, V> implements RecordWriter<K, V> {
                             s = primType == PrimitiveType.PrimitiveTypeName.BINARY ? "" : "0";
                         }
 
-                        try {
-                            switch (primType) {
-
-                                case INT32:
-                                    grp.append(colName, Integer.parseInt(s));
-                                    break;
-                                case INT64:
-                                case INT96:
-                                    grp.append(colName, Long.parseLong(s));
-                                    break;
-                                case DOUBLE:
-                                    grp.append(colName, Double.parseDouble(s));
-                                    break;
-                                case FLOAT:
-                                    grp.append(colName, Float.parseFloat(s));
-                                    break;
-                                case BOOLEAN:
-                                    grp.append(colName, s.equals("true") || s.equals("1"));
-                                    break;
-                                case BINARY:
-                                    grp.append(colName, Binary.fromString(s));
-                                    break;
-                                default:
-                                    throw new RuntimeException("Can't handle type " + primType);
+                        // If we have 'repeated' field, assume that we should expect JSON-encoded array
+                        // Convert array and append all values
+                        int repetition = 1;
+                        boolean repeated = false;
+                        ArrayList<String> s_vals = null;
+                        if (a.getRepetition() == Type.Repetition.REPEATED) {
+                            repeated = true;
+                            s_vals = new ArrayList();
+                            ObjectMapper mapper = new ObjectMapper();
+                            JsonNode node = mapper.readTree(s);
+                            Iterator <JsonNode> itr = node.iterator();
+                            repetition = 0;
+                            while(itr.hasNext()) {
+                                s_vals.add(itr.next().getTextValue());  // No array-of-objects!
+                                repetition ++;
                             }
-                        } catch (NumberFormatException e) {
+                        }
 
-                            grp.append(colName, 0);
+                        for (int j = 0; j < repetition; j ++) {
+
+                            if (repeated)
+                                // extract new s
+                                s = s_vals.get(j);
+
+
+                            try {
+                                switch (primType) {
+
+                                    case INT32:
+                                        grp.append(colName, Integer.parseInt(s));
+                                        break;
+                                    case INT64:
+                                    case INT96:
+                                        grp.append(colName, Long.parseLong(s));
+                                        break;
+                                    case DOUBLE:
+                                        grp.append(colName, Double.parseDouble(s));
+                                        break;
+                                    case FLOAT:
+                                        grp.append(colName, Float.parseFloat(s));
+                                        break;
+                                    case BOOLEAN:
+                                        grp.append(colName, s.equals("true") || s.equals("1"));
+                                        break;
+                                    case BINARY:
+                                        grp.append(colName, Binary.fromString(s));
+                                        break;
+                                    default:
+                                        throw new RuntimeException("Can't handle type " + primType);
+                                }
+                            } catch (NumberFormatException e) {
+
+                                grp.append(colName, 0);
+                            }
                         }
                 }
             }

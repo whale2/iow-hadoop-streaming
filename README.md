@@ -19,6 +19,9 @@ Evgeny Terentiev <terentev@gmail.com>
 Build with 'mvn package' and put on all your hadoop nodes (and a box which starts the job)
 into HADOOP_CLASSPATH (or send with -libjars)
 
+Known limitations: arrays of non-primitive types not supported yet. When using in text* formats, arrays are
+still JSON-encoded.
+
 Usage examples (assuming iow-hadoop-streaming-1.0.jar is present in HADOOP_CLASSPATH):
 
 Reading Avro file:

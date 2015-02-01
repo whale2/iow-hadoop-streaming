@@ -182,6 +182,12 @@ public class IOWJsonDecoder extends ParsingDecoder implements Parser.ActionHandl
                 if (s.equals("NaN")) {
                     return Float.NaN;
                 }
+                else if (s.equals("-Inf")) {
+                    return Float.NEGATIVE_INFINITY;
+                }
+                else if (s.equals("+Inf")) {
+                    return Float.POSITIVE_INFINITY;
+                }
                 else {
                     return Float.parseFloat(s);
                 }
@@ -205,6 +211,12 @@ public class IOWJsonDecoder extends ParsingDecoder implements Parser.ActionHandl
                 in.nextToken();
                 if (s.equals("NaN")) {
                     return Double.NaN;
+                }
+                else if (s.equals("-Inf")) {
+                    return Double.NEGATIVE_INFINITY;
+                }
+                else if (s.equals("+Inf")) {
+                    return Double.POSITIVE_INFINITY;
                 }
                 else {
                     return Double.parseDouble(s);
@@ -529,7 +541,10 @@ public class IOWJsonDecoder extends ParsingDecoder implements Parser.ActionHandl
 
                     final String nanCandidates[] = { "float", "double" };
                     n = a.findLabel("string");
-                    if (n < 0 && in.getText().equals("NaN"))  {
+                    if (n < 0 && (in.getText().equals("NaN") ||
+                            in.getText().equals("Inf") ||
+                            in.getText().equals("-Inf") ||
+                            in.getText().equals("+Inf")))  {
                         // Try to substitute NaN
 
                         for(String nn : nanCandidates) {
@@ -538,7 +553,7 @@ public class IOWJsonDecoder extends ParsingDecoder implements Parser.ActionHandl
                                 break GUESSING;
                             }
                         }
-                        throw error("string (is NaN, but no string, double or float branches found)");
+                        throw error("string (is NaN/Inf, but no string, double or float branches found)");
                     }
                     else if (n < 0) {
                         // Try to make double of this string

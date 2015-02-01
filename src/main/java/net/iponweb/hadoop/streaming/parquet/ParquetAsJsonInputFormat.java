@@ -59,32 +59,46 @@ public class ParquetAsJsonInputFormat<K, V> extends ParquetAsTextInputFormat {
               String field = gt.getFieldName(i);
               try {
                   Type t = gt.getType(i);
-                  if (t.isPrimitive()) {
-                      switch (t.asPrimitiveType().getPrimitiveTypeName()) {
-                          case BINARY:
-                              currentGenerator.writeStringField(field, grp.getString(i, 0));
-                              break;
-                          case INT32:
-                              currentGenerator.writeNumberField(field, grp.getInteger(i, 0));
-                              break;
-                          case INT96:
-                          case INT64:
-                              // clumsy way - TODO - Subclass SimpleGroup or something like that
-                              currentGenerator.writeNumberField(field, Long.parseLong(grp.getValueToString(i, 0)));
-                              break;
-                          case DOUBLE:
-                          case FLOAT:
-                              currentGenerator.writeNumberField(field, Double.parseDouble(grp.getValueToString(i, 0)));
-                              break;
-                          case BOOLEAN:
-                              currentGenerator.writeBooleanField(field, grp.getBoolean(i, 0));
-                              break;
-                          default:
-                              throw new RuntimeException("Can't handle type " + gt.getType(i));
+                  int repetition = 1;
+                  boolean repeated = false;
+                  if (t.getRepetition() == Type.Repetition.REPEATED) {
+                      repeated = true;
+                      repetition = grp.getFieldRepetitionCount(i);
+                      currentGenerator.writeArrayFieldStart(field);
+                  }
+                  else
+                    currentGenerator.writeFieldName(field);
+
+                  for(int j = 0; j < repetition; j ++) {
+
+                      if (t.isPrimitive()) {
+                          switch (t.asPrimitiveType().getPrimitiveTypeName()) {
+                              case BINARY:
+                                  currentGenerator.writeStringField(field, grp.getString(i, j));
+                                  break;
+                              case INT32:
+                                  currentGenerator.writeNumberField(field, grp.getInteger(i, j));
+                                  break;
+                              case INT96:
+                              case INT64:
+                                  // clumsy way - TODO - Subclass SimpleGroup or something like that
+                                  currentGenerator.writeNumberField(field, Long.parseLong(grp.getValueToString(i, j)));
+                                  break;
+                              case DOUBLE:
+                              case FLOAT:
+                                  currentGenerator.writeNumberField(field, Double.parseDouble(grp.getValueToString(i, j)));
+                                  break;
+                              case BOOLEAN:
+                                  currentGenerator.writeBooleanField(field, grp.getBoolean(i, j));
+                                  break;
+                              default:
+                                  throw new RuntimeException("Can't handle type " + gt.getType(i));
+                          }
+                      } else {
+                          groupToJson(currentGenerator, (SimpleGroup) grp.getGroup(i, j));
                       }
-                  } else {
-                      currentGenerator.writeFieldName(field);
-                      groupToJson(currentGenerator, (SimpleGroup) grp.getGroup(i, 0));
+                      if (repeated)
+                          currentGenerator.writeEndArray();
                   }
               }
               catch (Exception e) {
