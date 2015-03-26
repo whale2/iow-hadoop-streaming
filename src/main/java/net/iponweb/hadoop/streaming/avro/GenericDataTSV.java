@@ -82,26 +82,8 @@ public class GenericDataTSV extends GenericData {
                     // If we haven't string, but have null and data is empty string - put null
                     // Otherwise try to put primitive as is
                     // But if we have an array, put already-json-encoded array
-                    if (hasArray && !t.equals("")) { // assuming that array is already json-encoded
-                        ObjectMapper mapper = new ObjectMapper();
-                        JsonNode node = mapper.readTree(t);
-                        Iterator <JsonNode> i = node.iterator();
-                        GenericData.Array arr = new GenericData.Array(node.size(), Schema.createArray(payload));
-                        while(i.hasNext()) {
-                            switch (payload.getType()) {
-                                case INT:
-                                    arr.add(i.next().getIntValue());
-                                    break;
-                                case FLOAT:
-                                case DOUBLE:
-                                    arr.add(i.next().getDoubleValue());
-                                    break;
-                                default:
-                                    arr.add(i.next().getTextValue());  // No array-of-objects!
-                            }
-                        }
-
-                        innerDatum.put(m,arr);
+                    if (hasArray && !t.isEmpty()) { // assuming that array is already json-encoded
+                        innerDatum.put(m, createArray(payload, t));
                     }
                     else if (hasString) {
                         innerDatum.put(m, t);
@@ -119,6 +101,10 @@ public class GenericDataTSV extends GenericData {
                     Schema innerSchema = f.schema();
                     innerDatum.put(m,getDatum(tsvi, innerSchema));
                     break;
+                case ARRAY:
+                    t = tsvi.hasNext() ? tsvi.next() : "[]";
+                    innerDatum.put(m, createArray(type.getElementType(), t.isEmpty() ? "[]" : t));
+                    break;
                 default:
                     t = tsvi.hasNext() ? tsvi.next() : "";
                     putPrimitive(innerDatum, m, type, t);
@@ -129,6 +115,30 @@ public class GenericDataTSV extends GenericData {
         return innerDatum;
     }
 
+    private GenericData.Array createArray(Schema type, String t)
+            throws IOException, JsonProcessingException {
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode node = mapper.readTree(t);
+        Iterator <JsonNode> i = node.iterator();
+        GenericData.Array arr = new GenericData.Array(node.size(), Schema.createArray(type));
+        while(i.hasNext()) {
+            switch (type.getType()) {
+                case INT:
+                    arr.add(i.next().getIntValue());
+                    break;
+                case FLOAT:
+                case DOUBLE:
+                    arr.add(i.next().getDoubleValue());
+                    break;
+                default:
+                    arr.add(i.next().getTextValue());  // No array-of-objects!
+            }
+        }
+
+        return arr;
+    }
+    
     private void putPrimitive(GenericData.Record datum, int pos, Schema type, String t) {
         try {
             switch (type.getType()) {
