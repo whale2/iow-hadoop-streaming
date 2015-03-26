@@ -20,8 +20,11 @@ into HADOOP_CLASSPATH (or send with -libjars)
 
 Known limitations: arrays of non-primitive types not supported yet. When using in text* formats, arrays are
 still JSON-encoded.
+When converting to json, these formats will wrap NaN/Inf into quotes, otherwise json is invalid to many parsers.
+When converting from json, at least Avro output formats will try to squeeze "NaN" into float and double fields as real NaN/Inf.
+Issue with reading avro was fixed in avro-1.7.7 (https://issues.apache.org/jira/browse/AVRO-1454), but not the issue with writing, as far as I understand. 
 
-Usage examples (assuming iow-hadoop-streaming-1.0.jar is present in HADOOP_CLASSPATH):
+Usage examples (assuming iow-hadoop-streaming-1.0.jar is present in HADOOP_CLASSPATH, otherwise include with -libjars):
 
 Reading Avro file:
 
@@ -73,9 +76,11 @@ unique name. File name is effectively the first field in your reducer output. (F
 is map.output.key.field.separator). Easiest way for this is to add slash and Reducer ID, so you
 will have something like this:
 
+```
 /job_output_dir/output_type_0/0.avro
 /job_output_dir/output_type_0/1.avro
 ...
+```
 
 If your output has single schema, this is enough. If different schemas required, they should be
 named before the colon in the first field:
