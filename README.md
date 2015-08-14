@@ -31,7 +31,7 @@ Reading Avro file:
 ```
 $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar \
 -D mapreduce.output.fileoutputformat.compress=true -D stream.reduce.output=text \
--inputformat net.iponweb.hadoop.streaming.parquet.AvroAsJsonInputFormat \
+-inputformat net.iponweb.hadoop.streaming.avro.AvroAsJsonInputFormat \
 -input <your input> -output <your output> -mapper <your mapper> -reducer <your reducer>
 ```
 
@@ -52,7 +52,7 @@ Writing Avro file:
 $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar \
 -D iow.streaming.output.schema=<your avro schema> -files <your avro schema>
 -D mapreduce.output.fileoutputformat.compress=true -D stream.reduce.output=text \
--outputformat net.iponweb.hadoop.streaming.parquet.AvroAsJsonOutputFormat \
+-outputformat net.iponweb.hadoop.streaming.avro.AvroAsJsonOutputFormat \
 -input <your input> -output <your output> -mapper <your mapper> -reducer <your reducer>
 ```
 
