@@ -23,15 +23,15 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.util.Progressable;
-import parquet.example.data.Group;
-import parquet.example.data.simple.SimpleGroupFactory;
-import parquet.hadoop.ParquetRecordWriter;
-import parquet.io.api.Binary;
-import parquet.org.codehaus.jackson.JsonNode;
-import parquet.org.codehaus.jackson.map.ObjectMapper;
-import parquet.schema.MessageType;
-import parquet.schema.PrimitiveType;
-import parquet.schema.Type;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.SimpleGroupFactory;
+import org.apache.parquet.hadoop.ParquetRecordWriter;
+import org.apache.parquet.io.api.Binary;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Type;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,7 +50,7 @@ public class TextRecordWriterWrapper<K, V> implements RecordWriter<K, V> {
             throws IOException {
 
         realWriter = w;
-        schema = parquet.hadoop.example.GroupWriteSupport.getSchema(conf);
+        schema = org.apache.parquet.hadoop.example.GroupWriteSupport.getSchema(conf);
         factory = new SimpleGroupFactory(schema);
 
         recorder = new ArrayList<PathAction>();

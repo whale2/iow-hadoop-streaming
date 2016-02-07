@@ -19,13 +19,13 @@ import java.util.HashMap;
 
 import org.apache.hadoop.conf.Configuration;
 
-import parquet.example.data.Group;
-import parquet.example.data.GroupWriter;
-import parquet.io.api.RecordConsumer;
-import parquet.schema.MessageType;
-import parquet.schema.MessageTypeParser;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.GroupWriter;
+import org.apache.parquet.io.api.RecordConsumer;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.MessageTypeParser;
 
-public class GroupWriteSupport extends parquet.hadoop.api.WriteSupport<Group> {
+public class GroupWriteSupport extends org.apache.parquet.hadoop.api.WriteSupport<Group> {
 
   public static final String PARQUET_EXAMPLE_SCHEMA = "parquet.example.schema";
 
@@ -41,9 +41,9 @@ public class GroupWriteSupport extends parquet.hadoop.api.WriteSupport<Group> {
   private GroupWriter groupWriter;
 
   @Override
-  public parquet.hadoop.api.WriteSupport.WriteContext init(Configuration configuration) {
+  public org.apache.parquet.hadoop.api.WriteSupport.WriteContext init(Configuration configuration) {
     schema = getSchema(configuration);
-    return new parquet.hadoop.api.WriteSupport.WriteContext(schema, new HashMap<String, String>());
+    return new org.apache.parquet.hadoop.api.WriteSupport.WriteContext(schema, new HashMap<String, String>());
   }
 
   @Override

@@ -19,9 +19,9 @@ package net.iponweb.hadoop.streaming.avro;
 import com.google.common.base.Joiner;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import parquet.org.codehaus.jackson.JsonNode;
-import parquet.org.codehaus.jackson.JsonProcessingException;
-import parquet.org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.JsonProcessingException;
+import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;
 import java.util.ArrayList;

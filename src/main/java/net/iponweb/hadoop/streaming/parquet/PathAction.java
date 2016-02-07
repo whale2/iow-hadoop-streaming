@@ -16,8 +16,8 @@
 
 package net.iponweb.hadoop.streaming.parquet;
 
-import parquet.schema.PrimitiveType;
-import parquet.schema.Type;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Type;
 
 public class PathAction {
 

@@ -20,11 +20,12 @@ package net.iponweb.hadoop.streaming.parquet;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import parquet.example.data.Group;
-import parquet.example.data.simple.convert.GroupRecordConverter;
-import parquet.hadoop.api.ReadSupport;
-import parquet.io.api.RecordMaterializer;
-import parquet.schema.MessageType;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.convert.GroupRecordConverter;
+import org.apache.parquet.hadoop.api.InitContext;
+import org.apache.parquet.hadoop.api.ReadSupport;
+import org.apache.parquet.io.api.RecordMaterializer;
+import org.apache.parquet.schema.MessageType;
 
 import java.util.Map;
 
@@ -33,18 +34,23 @@ public class GroupReadSupport extends ReadSupport<Group> {
   private static final Log LOG = LogFactory.getLog(GroupReadSupport.class);
 
   @Override
-  public parquet.hadoop.api.ReadSupport.ReadContext init(
+  public org.apache.parquet.hadoop.api.ReadSupport.ReadContext init(
       Configuration configuration, Map<String, String> keyValueMetaData,
       MessageType fileSchema) {
     String partialSchemaString = configuration.get(ReadSupport.PARQUET_READ_SCHEMA);
-
     return new ReadContext(getSchemaForRead(fileSchema, partialSchemaString));
+  }
+
+  @Override
+  public org.apache.parquet.hadoop.api.ReadSupport.ReadContext init(InitContext context) {
+
+      return init(context.getConfiguration(), context.getMergedKeyValueMetaData(), context.getFileSchema());
   }
 
   @Override
   public RecordMaterializer<Group> prepareForRead(Configuration configuration,
       Map<String, String> keyValueMetaData, MessageType fileSchema,
-      parquet.hadoop.api.ReadSupport.ReadContext readContext) {
+      org.apache.parquet.hadoop.api.ReadSupport.ReadContext readContext) {
     return new GroupRecordConverter(readContext.getRequestedSchema());
   }
 }

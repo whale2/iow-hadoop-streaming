@@ -23,10 +23,10 @@ import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonGenerator;
-import parquet.example.data.simple.SimpleGroup;
-import parquet.hadoop.ParquetInputFormat;
-import parquet.schema.GroupType;
-import parquet.schema.Type;
+import org.apache.parquet.example.data.simple.SimpleGroup;
+import org.apache.parquet.hadoop.ParquetInputFormat;
+import org.apache.parquet.schema.GroupType;
+import org.apache.parquet.schema.Type;
 
 import java.io.CharArrayWriter;
 import java.io.IOException;
@@ -74,22 +74,22 @@ public class ParquetAsJsonInputFormat<K, V> extends ParquetAsTextInputFormat {
                       if (t.isPrimitive()) {
                           switch (t.asPrimitiveType().getPrimitiveTypeName()) {
                               case BINARY:
-                                  currentGenerator.writeStringField(field, grp.getString(i, j));
+                                  currentGenerator.writeString(grp.getString(i, j));
                                   break;
                               case INT32:
-                                  currentGenerator.writeNumberField(field, grp.getInteger(i, j));
+                                  currentGenerator.writeNumber(grp.getInteger(i, j));
                                   break;
                               case INT96:
                               case INT64:
                                   // clumsy way - TODO - Subclass SimpleGroup or something like that
-                                  currentGenerator.writeNumberField(field, Long.parseLong(grp.getValueToString(i, j)));
+                                  currentGenerator.writeNumber(Long.parseLong(grp.getValueToString(i, j)));
                                   break;
                               case DOUBLE:
                               case FLOAT:
-                                  currentGenerator.writeNumberField(field, Double.parseDouble(grp.getValueToString(i, j)));
+                                  currentGenerator.writeNumber(Double.parseDouble(grp.getValueToString(i, j)));
                                   break;
                               case BOOLEAN:
-                                  currentGenerator.writeBooleanField(field, grp.getBoolean(i, j));
+                                  currentGenerator.writeBoolean(grp.getBoolean(i, j));
                                   break;
                               default:
                                   throw new RuntimeException("Can't handle type " + gt.getType(i));
@@ -97,13 +97,14 @@ public class ParquetAsJsonInputFormat<K, V> extends ParquetAsTextInputFormat {
                       } else {
                           groupToJson(currentGenerator, (SimpleGroup) grp.getGroup(i, j));
                       }
-                      if (repeated)
-                          currentGenerator.writeEndArray();
                   }
+
+                  if (repeated)
+                      currentGenerator.writeEndArray();
               }
               catch (Exception e) {
                   if (e.getMessage().startsWith("not found") && gt.getType(i).getRepetition() == Type.Repetition.OPTIONAL)
-                      currentGenerator.writeNullField(field);
+                      currentGenerator.writeNull();
                   else
                       throw new RuntimeException(e);
               }

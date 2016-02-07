@@ -1,20 +1,26 @@
 package net.iponweb.hadoop.streaming.parquet;
 
 import com.google.common.base.Joiner;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
-import parquet.example.data.simple.SimpleGroup;
-import parquet.hadoop.Footer;
-import parquet.hadoop.ParquetInputFormat;
-import parquet.hadoop.ParquetInputSplit;
-import parquet.hadoop.ParquetRecordReader;
-import parquet.hadoop.api.ReadSupport;
-import parquet.hadoop.mapred.Container;
-import parquet.schema.PrimitiveType;
-import parquet.schema.Type;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.JobID;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.apache.parquet.example.data.simple.SimpleGroup;
+import org.apache.parquet.hadoop.Footer;
+import org.apache.parquet.hadoop.ParquetInputFormat;
+import org.apache.parquet.hadoop.ParquetInputSplit;
+import org.apache.parquet.hadoop.ParquetRecordReader;
+import org.apache.parquet.hadoop.api.ReadSupport;
+import org.apache.parquet.hadoop.mapred.Container;
+import org.apache.parquet.hadoop.util.ContextUtil;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Type;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -36,15 +42,16 @@ public class ParquetAsTextInputFormat<K, V> extends org.apache.hadoop.mapred.Fil
   @Override
   public InputSplit[] getSplits(JobConf job, int numSplits) throws IOException {
     List<Footer> footers = getFooters(job);
-    List<ParquetInputSplit> splits = realInputFormat.getSplits(job, footers);
 
-      if (splits == null) {
+      JobContext cnt = ContextUtil.newJobContext(job, new JobID("xxx", 0));
+
+      List<org.apache.hadoop.mapreduce.InputSplit> splits = realInputFormat.getSplits(cnt);
+      if (splits == null)
         return null;
-      }
 
       InputSplit[] resultSplits = new InputSplit[splits.size()];
       int i = 0;
-      for (ParquetInputSplit split : splits) {
+      for (org.apache.hadoop.mapreduce.InputSplit split : splits) {
           resultSplits[i++] = new StreamingParquetInputSplitWrapper(split);
       }
 
@@ -74,11 +81,12 @@ public class ParquetAsTextInputFormat<K, V> extends org.apache.hadoop.mapred.Fil
       splitLen = oldSplit.getLength();
 
       try {
-        ReadSupport rs = newInputFormat.getReadSupport(oldJobConf);
+        ReadSupport rs = ParquetInputFormat.getReadSupportInstance(oldJobConf);
         realReader = new ParquetRecordReader<V>(rs);
         realReader.initialize(((StreamingParquetInputSplitWrapper)oldSplit).realSplit, oldJobConf, reporter);
 
         oldJobConf.set("map.input.file",((StreamingParquetInputSplitWrapper)oldSplit).realSplit.getPath().toString());
+        oldJobConf.set("mapreduce.map.input.file",((StreamingParquetInputSplitWrapper)oldSplit).realSplit.getPath().toString());
 
         // read once to gain access to key and value objects
         if (realReader.nextKeyValue()) {
@@ -206,14 +214,14 @@ public class ParquetAsTextInputFormat<K, V> extends org.apache.hadoop.mapred.Fil
 
   private static class StreamingParquetInputSplitWrapper implements InputSplit {
 
-    ParquetInputSplit realSplit;
+      FileSplit realSplit;
 
 
     @SuppressWarnings("unused") // MapReduce instantiates this.
     public StreamingParquetInputSplitWrapper() {}
 
-    public StreamingParquetInputSplitWrapper(ParquetInputSplit realSplit) {
-      this.realSplit = realSplit;
+    public StreamingParquetInputSplitWrapper(org.apache.hadoop.mapreduce.InputSplit split) throws IOException {
+        this.realSplit = (FileSplit)split;
     }
 
     @Override

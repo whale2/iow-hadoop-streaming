@@ -28,12 +28,12 @@ import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.util.Progressable;
-import parquet.hadoop.ParquetOutputFormat;
-import parquet.hadoop.ParquetRecordWriter;
-import parquet.hadoop.example.GroupWriteSupport;
-import parquet.hadoop.metadata.CompressionCodecName;
-import parquet.schema.MessageType;
-import parquet.schema.MessageTypeParser;
+import org.apache.parquet.hadoop.ParquetOutputFormat;
+import org.apache.parquet.hadoop.ParquetRecordWriter;
+import org.apache.parquet.hadoop.example.GroupWriteSupport;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.MessageTypeParser;
 
 import java.io.BufferedReader;
 import java.io.File;

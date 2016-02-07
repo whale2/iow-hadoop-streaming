@@ -3,13 +3,13 @@ package net.iponweb.hadoop.streaming.parquet;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.Progressable;
-import parquet.example.data.Group;
-import parquet.hadoop.ParquetRecordWriter;
-import parquet.io.InvalidRecordException;
-import parquet.org.codehaus.jackson.JsonNode;
-import parquet.org.codehaus.jackson.map.ObjectMapper;
-import parquet.schema.PrimitiveType;
-import parquet.schema.Type;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.hadoop.ParquetRecordWriter;
+import org.apache.parquet.io.InvalidRecordException;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Type;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -41,7 +41,6 @@ public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V>
 
             Stack<Group> savedGroup = new Stack<Group>();
             Stack<JsonNode> savedNode = new Stack<JsonNode>();
-
             while (ai.hasNext()) {
 
                 PathAction a = ai.next();
@@ -64,10 +63,10 @@ public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V>
                         String colName = a.getName();
                         JsonNode stubNode = node.get(colName);
                         PrimitiveType.PrimitiveTypeName primType = a.getType();
-
                         try {
                             if (stubNode == null || stubNode.isNull()) {
-                                if (a.getRepetition() == Type.Repetition.OPTIONAL)
+                                if (a.getRepetition() == Type.Repetition.OPTIONAL ||
+                                        a.getRepetition() == Type.Repetition.REPEATED)
                                     continue;
                                 else
                                     throw new InvalidRecordException("json column '" +
@@ -83,7 +82,7 @@ public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V>
                             if (a.getRepetition() == Type.Repetition.REPEATED) {
                                 repeated = true;
                                 s_vals = new ArrayList();
-                                Iterator <JsonNode> itr = node.iterator();
+                                Iterator <JsonNode> itr = stubNode.iterator();
                                 repetition = 0;
                                 while(itr.hasNext()) {
                                     s_vals.add(itr.next());  // No array-of-objects!
@@ -96,6 +95,8 @@ public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V>
                                 if (repeated) {
                                     // extract new s
                                     stubNode = s_vals.get(j);
+                                    if (stubNode == null || stubNode.isNull())
+                                        continue;
                                 }
 
                                 switch (primType) {
