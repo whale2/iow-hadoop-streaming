@@ -6,7 +6,7 @@
 
     <groupId>net.iponweb.hadoop.mr2</groupId>
     <artifactId>hadoop2-iow-lib</artifactId>
-    <version>1.0</version>
+    <version>1.10</version>
     <packaging>jar</packaging>
     
     <properties>
