@@ -28,6 +28,9 @@ writing, as far as I understand.
 When using version RC-1.0x with parquet above 1.5, input format detects no input splits, unless parquet.task.side.metadata 
 is set to false. Fixed in RC-1.1.
 
+*** NOTE: In RC-1.20 parameter ```iow.streaming.output.schema``` has been changed. Now it should contain a string with schema.
+To pass schema in a file, use ```iow.streaming.output.schema.file```.
+
 Usage examples (assuming iow-hadoop-streaming-1.x.jar is present in HADOOP_CLASSPATH, otherwise include with -libjars):
 
 Reading Avro file:
@@ -112,7 +115,6 @@ $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar \
 -outputformat net.iponweb.hadoop.streaming.ByKeyOutputFormat \
 -input <your input> -output <your output> -mapper <your mapper> -reducer <your reducer>
 ```
-
 
 Nikita Makeev, IPONWEB
 Please contact me with questions and feedback by e-mail: whale2.box@gmail.com
