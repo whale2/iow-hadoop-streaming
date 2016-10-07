@@ -1,19 +1,3 @@
-/**
- * Copyright 2014 IPONWEB
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package net.iponweb.hadoop.streaming.avro;
 
 import com.google.common.base.Joiner;
@@ -81,7 +65,7 @@ public class GenericDataTSV extends GenericData {
                     // If we have string branch - put the data because string can handle everything
                     // If we haven't string, but have null and data is empty string - put null
                     // Otherwise try to put primitive as is
-                    // But if we have an array, put already-json-encoded array
+
                     if (hasArray && !t.isEmpty()) { // assuming that array is already json-encoded
                         innerDatum.put(m, createArray(payload, t));
                     }
@@ -99,7 +83,7 @@ public class GenericDataTSV extends GenericData {
 
                 case RECORD:
                     Schema innerSchema = f.schema();
-                    innerDatum.put(m,getDatum(tsvi, innerSchema));
+                    innerDatum.put(m, getDatum(tsvi, innerSchema));
                     break;
                 case ARRAY:
                     t = tsvi.hasNext() ? tsvi.next() : "[]";
@@ -115,13 +99,13 @@ public class GenericDataTSV extends GenericData {
         return innerDatum;
     }
 
-    private GenericData.Array createArray(Schema type, String t)
+    private Array<java.io.Serializable> createArray(Schema type, String t)
             throws IOException, JsonProcessingException {
 
         ObjectMapper mapper = new ObjectMapper();
         JsonNode node = mapper.readTree(t);
         Iterator <JsonNode> i = node.iterator();
-        GenericData.Array arr = new GenericData.Array(node.size(), Schema.createArray(type));
+        Array<java.io.Serializable> arr = new GenericData.Array<java.io.Serializable>(node.size(), Schema.createArray(type));
         while(i.hasNext()) {
             switch (type.getType()) {
                 case INT:
@@ -138,8 +122,12 @@ public class GenericDataTSV extends GenericData {
 
         return arr;
     }
-    
+
     private void putPrimitive(GenericData.Record datum, int pos, Schema type, String t) {
+
+        float fv;
+        double dv;
+
         try {
             switch (type.getType()) {
                 case BOOLEAN:
@@ -152,10 +140,26 @@ public class GenericDataTSV extends GenericData {
                     datum.put(pos, Long.parseLong(t));
                     break;
                 case FLOAT:
-                    datum.put(pos, Float.parseFloat(t));
+                    if (t.equalsIgnoreCase("NaN"))
+                        fv = Float.NaN;
+                    else if (t.equalsIgnoreCase("-Inf"))
+                        fv = Float.NEGATIVE_INFINITY;
+                    else if (t.equalsIgnoreCase("+Inf") || t.equalsIgnoreCase("Inf"))
+                        fv = Float.POSITIVE_INFINITY;
+                    else
+                        fv = Float.parseFloat(t);
+                    datum.put(pos, fv);
                     break;
                 case DOUBLE:
-                    datum.put(pos, Double.parseDouble(t));
+                    if (t.equalsIgnoreCase("NaN"))
+                        dv = Double.NaN;
+                    else if (t.equalsIgnoreCase("-Inf"))
+                        dv = Double.NEGATIVE_INFINITY;
+                    else if (t.equalsIgnoreCase("+Inf") || t.equalsIgnoreCase("Inf"))
+                        dv = Double.POSITIVE_INFINITY;
+                    else
+                        dv = Double.parseDouble(t);
+                    datum.put(pos, dv);
                     break;
                 case ENUM:
                     datum.put(pos, new EnumSymbol(type,t));
@@ -170,126 +174,103 @@ public class GenericDataTSV extends GenericData {
     }
 
     @Override
-    public void toString(Object datum, StringBuilder buffer) {
-        boolean nan = (datum instanceof Float && ((Float) datum).isNaN())
-                || (datum instanceof Double && ((Double) datum).isNaN());
-        if (nan) {
-            buffer.append("\"NaN\"");
-            return;
-        }
-        super.toString(datum, buffer);
-    }
-
-    @Override
     public String toString(Object datum) {
 
         StringBuilder sb = new StringBuilder();
+        toString(datum, sb);
+        return sb.toString();
+    }
+
+    @Override
+    public void toString(Object datum, StringBuilder sb) {
+
         List<Schema.Field> fields = ((GenericDataTSV.Record)datum).getSchema().getFields();
 
         Iterator<Schema.Field> i = fields.iterator();
         int n = 0;
         while(i.hasNext()) {
             Schema.Field f = i.next();
-            Object val = ((GenericDataTSV.Record) datum).get(n ++);
-            switch (f.schema().getType()) {
+            Object val = ((GenericDataTSV.Record) datum).get(n++);
 
-                case RECORD:
-                    sb.append(toString(val));
-                    break;
-                case NULL:
-                    break;
-                case UNION:
-                    // all fields are wrapped into unions...
-                    // TODO: Implement schema caching of some sort!!11
-
-                    boolean hasArray = false;
-                    List<Schema> tps = f.schema().getTypes();
-                    Iterator<Schema> tt = tps.iterator();
-                    Schema arraySchema = null;
-                    while(tt.hasNext())
-                        if((arraySchema = tt.next()).getType() == Schema.Type.ARRAY)
-                            hasArray = true;
-
-                    if (hasArray && !val.toString().equals("null")) {
-                        sb.append("[");
-                        ArrayList arr = new ArrayList();
-                        Schema.Type s = arraySchema.getElementType().getType();
-                        Iterator it = ((GenericDataTSV.Array) val).iterator();
-                        while (it.hasNext())
-                            arr.add(s == Schema.Type.STRING ?
-                                    "\"" + it.next() + "\"" : it.next());
-
-                        sb.append(Joiner.on(",").join(arr));
-                        sb.append("]");
-                        break;
-                    }
-
-
-                default:
-                    if (val != null)
-                        sb.append(val.toString());
-            }
+            fieldToString(f, val, sb);
 
             if (i.hasNext())
                 sb.append("\t");
         }
-
-        return new String(sb.toString());
     }
 
     public String toString(Object datum,int start,int stop) {
 
         StringBuilder sb = new StringBuilder();
-        ArrayList<Schema.Field> fields = (ArrayList)((GenericDataTSV.Record)datum).getSchema().getFields();
+        ArrayList<Schema.Field> fields = (ArrayList<Schema.Field>)((GenericDataTSV.Record)datum).getSchema().getFields();
 
         if (stop == -1)
             stop += fields.size();
         for (int i = start; i <= stop; i ++) {
             Schema.Field f = fields.get(i);
             Object val = ((GenericDataTSV.Record) datum).get(i);
-            switch (f.schema().getType()) {
 
-                case RECORD:
-                    sb.append(toString(val));
-                    break;
-                case NULL:
-                    break;
-                case UNION:
-
-                    // all fields are wrapped into unions...
-
-                    boolean hasArray = false;
-                    List<Schema> tps = f.schema().getTypes();
-                    Iterator<Schema> tt = tps.iterator();
-                    Schema arraySchema = null;
-                    while(tt.hasNext())
-                        if((arraySchema = tt.next()).getType() == Schema.Type.ARRAY)
-                            hasArray = true;
-
-                    if (hasArray && !val.toString().equals("null")) {
-                        sb.append("[");
-                        ArrayList arr = new ArrayList();
-                        Schema.Type s = arraySchema.getElementType().getType();
-                        Iterator it = ((GenericDataTSV.Array) val).iterator();
-                        while (it.hasNext())
-                            arr.add(s == Schema.Type.STRING ?
-                                    "\"" + it.next() + "\"" : it.next());
-
-                        sb.append(Joiner.on(",").join(arr));
-                        sb.append("]");
-                        break;
-                    }
-
-                default:
-                    if (val != null)
-                        sb.append(val.toString());
-            }
+            fieldToString(f, val, sb);
 
             if (i != stop)
                 sb.append("\t");
         }
 
-        return new String(sb.toString());
+        return sb.toString();
+    }
+
+    private void arrayToString(Object val, Schema schema, StringBuilder sb) {
+        sb.append("[");
+        ArrayList<String> arr = new ArrayList<String>();
+        Schema.Type s = schema.getElementType().getType();
+        Iterator it = ((GenericDataTSV.Array) val).iterator();
+        while (it.hasNext())
+            arr.add(s == Schema.Type.STRING ?
+                            "\"" + it.next().toString() + "\"" : it.next().toString());
+
+        sb.append(Joiner.on(", ").join(arr));
+        sb.append("]");
+    }
+
+    private void fieldToString(Schema.Field f, Object val, StringBuilder sb) {
+
+        switch (f.schema().getType()) {
+
+            case RECORD:
+                sb.append(toString(val));
+                break;
+
+            case NULL:
+                break;
+
+            case ARRAY:
+                arrayToString(val, f.schema(), sb);
+                break;
+
+            case UNION:
+
+                // all fields are wrapped into unions...
+
+                boolean hasArray = false;
+                List<Schema> tps = f.schema().getTypes();
+                Iterator<Schema> tt = tps.iterator();
+                Schema arraySchema = null;
+                while(tt.hasNext())
+                    if((arraySchema = tt.next()).getType() == Schema.Type.ARRAY) {
+                        hasArray = true;
+                        break;
+                    }
+
+                if (hasArray && !val.toString().equals("null")) {
+                    arrayToString(val, arraySchema, sb);
+                    break;
+                }
+
+            default:
+                if (val != null)
+                    sb.append(val.toString());
+        }
+
     }
 
 }

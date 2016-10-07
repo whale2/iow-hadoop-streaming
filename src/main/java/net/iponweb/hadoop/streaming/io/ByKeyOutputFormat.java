@@ -1,7 +1,7 @@
 /**
  * Copyright 2014 IPONWEB
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
+ * Licensed under the Apache License, Textersion 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -9,7 +9,7 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY TextIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
@@ -65,9 +65,9 @@ import java.util.TreeMap;
  * schemaA:typeA/0<TAB>...
  */
 
-public class ByKeyOutputFormat<K, V> extends FileOutputFormat<K, V> {
+public class ByKeyOutputFormat extends FileOutputFormat<Text, Text> {
     private static final Log LOG = LogFactory.getLog(net.iponweb.hadoop.streaming.io.ByKeyOutputFormat.class);
-    private OutputFormat<K, V> internalOutputFormat;
+    private OutputFormat<Text, Text> internalOutputFormat;
     private KeyValueSplitter splitter;
     private boolean assumeFileNamesSorted;
     private HashMap<String,String> SupportedOutputFormats = new HashMap<String,String>();
@@ -87,7 +87,7 @@ public class ByKeyOutputFormat<K, V> extends FileOutputFormat<K, V> {
             if (f.equals(format)) {
 
                 try {
-                    internalOutputFormat =  (OutputFormat<K,V>)
+                    internalOutputFormat =  (OutputFormat<Text,Text>)
                         Class.forName(SupportedOutputFormats.get(f)).newInstance();
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -106,30 +106,30 @@ public class ByKeyOutputFormat<K, V> extends FileOutputFormat<K, V> {
     }
 
     @Override
-    public RecordWriter<K, V> getRecordWriter(final FileSystem fs, final JobConf job, String name, final Progressable progressable) throws IOException {
+    public RecordWriter<Text, Text> getRecordWriter(final FileSystem fs, final JobConf job, String name, final Progressable progressable) throws IOException {
         initialize(job);
-        return new RecordWriter<K, V>() {
-            private RecordWriter<K, V> currentWriter;
-            private String currentKey;
-            private TreeMap<String, RecordWriter<K, V>> recordWriterByKeys = new TreeMap<String, RecordWriter<K, V>>();
+        return new RecordWriter<Text, Text>() {
+            private RecordWriter<Text, Text> currentWriter;
+            private String currentTextey;
+            private TreeMap<String, RecordWriter<Text, Text>> recordWriterByTexteys = new TreeMap<String, RecordWriter<Text, Text>>();
 
             @Override
-            public void write(K key, V value) throws IOException {
-                String fileName = generateFileNameForKeyValue(key, value);
+            public void write(Text key, Text value) throws IOException {
+                String fileName = generateFileNameForTexteyTextalue(key, value);
                 if (assumeFileNamesSorted) {
-                    if (!fileName.equals(currentKey)) {
+                    if (!fileName.equals(currentTextey)) {
                         if (currentWriter != null) {
                             currentWriter.close(Reporter.NULL);
                         }
                         currentWriter = getBaseRecordWriter(fs, job, fileName, progressable);
-                        currentKey = fileName;
+                        currentTextey = fileName;
                     }
                     currentWriter.write(key, value);
                 } else {
-                    RecordWriter<K, V> writer = recordWriterByKeys.get(fileName);
+                    RecordWriter<Text, Text> writer = recordWriterByTexteys.get(fileName);
                     if (writer == null) {
                         writer = getBaseRecordWriter(fs, job, fileName, progressable);
-                        recordWriterByKeys.put(fileName, writer);
+                        recordWriterByTexteys.put(fileName, writer);
                     }
                     writer.write(key, value);
                 }
@@ -141,26 +141,26 @@ public class ByKeyOutputFormat<K, V> extends FileOutputFormat<K, V> {
                 if (currentWriter != null) {
                     currentWriter.close(reporter);
                 }
-                for (RecordWriter<K, V> writer : recordWriterByKeys.values()) {
+                for (RecordWriter<Text, Text> writer : recordWriterByTexteys.values()) {
                     writer.close(reporter);
                 }
             }
         };
     }
 
-    protected RecordWriter<K, V> getBaseRecordWriter(FileSystem fileSystem, JobConf jobConf, String name, Progressable progressable) throws IOException {
+    protected RecordWriter<Text, Text> getBaseRecordWriter(FileSystem fileSystem, JobConf jobConf, String name, Progressable progressable) throws IOException {
         if (name == null || name.isEmpty()) {
             throw new IOException("Invalid name: " + name);
         }
-        final RecordWriter internalWriter = internalOutputFormat.getRecordWriter(fileSystem, jobConf, name, progressable);
+        final RecordWriter<Text, Text> internalWriter = internalOutputFormat.getRecordWriter(fileSystem, jobConf, name, progressable);
         if (internalWriter == null) {
             throw new IllegalStateException("Internal format returned null record writer. Format=" + internalOutputFormat);
         }
-        return new RecordWriter<K, V>() {
+        return new RecordWriter<Text, Text>() {
             @Override
-            public void write(K key, V value) throws IOException {
-                Map.Entry<String, String> keyValue = splitter.split(value.toString());
-                internalWriter.write(new Text(keyValue.getKey()), new Text(keyValue.getValue()));
+            public void write(Text key, Text value) throws IOException {
+                Map.Entry<String, String> keyvalue = splitter.split(value.toString());
+                internalWriter.write(new Text(keyvalue.getKey()), new Text(keyvalue.getValue()));
             }
 
             @Override
@@ -170,7 +170,7 @@ public class ByKeyOutputFormat<K, V> extends FileOutputFormat<K, V> {
         };
     }
 
-    protected String generateFileNameForKeyValue(K key, V value) {
+    protected String generateFileNameForTexteyTextalue(Text key, Text value) {
         String keyStr = key.toString();
         Map.Entry<String, String> split = splitter.split(keyStr);
         return split.getKey();

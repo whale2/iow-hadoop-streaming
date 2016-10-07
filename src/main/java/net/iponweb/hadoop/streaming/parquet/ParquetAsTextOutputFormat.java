@@ -23,11 +23,13 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.util.Progressable;
+import org.apache.parquet.example.data.simple.SimpleGroup;
 import org.apache.parquet.hadoop.ParquetOutputFormat;
 import org.apache.parquet.hadoop.ParquetRecordWriter;
 import org.apache.parquet.hadoop.example.GroupWriteSupport;
@@ -40,10 +42,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 
-public class ParquetAsTextOutputFormat<K,V> extends FileOutputFormat<K,V> {
+public class ParquetAsTextOutputFormat extends FileOutputFormat<Text, Text> {
 
     private static final Log LOG = LogFactory.getLog(ParquetAsTextOutputFormat.class);
-    protected ParquetOutputFormat<V> realOutputFormat = new ParquetOutputFormat<V>();
+    protected ParquetOutputFormat<SimpleGroup> realOutputFormat = new ParquetOutputFormat<>();
 
     public static void setWriteSupportClass(Configuration configuration,  Class<?> writeSupportClass) {
         configuration.set(ParquetOutputFormat.WRITE_SUPPORT_CLASS, writeSupportClass.getName());
@@ -75,55 +77,61 @@ public class ParquetAsTextOutputFormat<K,V> extends FileOutputFormat<K,V> {
         CompressionCodecName codec;
 
         if (ParquetOutputFormat.isCompressionSet(conf)) { // explicit parquet config
-          codec = ParquetOutputFormat.getCompression(conf);
+            codec = ParquetOutputFormat.getCompression(conf);
         } else if (getCompressOutput(conf)) { // from hadoop config
-          // find the right codec
-          Class<?> codecClass = getOutputCompressorClass(conf, DefaultCodec.class);
-          LOG.info("Compression set through hadoop codec: " + codecClass.getName());
-          codec = CompressionCodecName.fromCompressionCodec(codecClass);
+            // find the right codec
+            Class<?> codecClass = getOutputCompressorClass(conf, DefaultCodec.class);
+            LOG.info("Compression set through hadoop codec: " + codecClass.getName());
+            codec = CompressionCodecName.fromCompressionCodec(codecClass);
         } else {
-          codec = CompressionCodecName.UNCOMPRESSED;
+            codec = CompressionCodecName.UNCOMPRESSED;
         }
 
         LOG.info("Compression: " + codec.name());
         return codec;
     }
 
-    public RecordWriter<K,V> getRecordWriter(FileSystem fs, JobConf job, String name, Progressable progress)
+    public RecordWriter<Text, Text> getRecordWriter(FileSystem fs, JobConf job, String name, Progressable progress)
         throws IOException {
 
         // find and load schema
-        String schemaFile = job.get("iow.streaming.output.schema","streaming_output_schema");
-        String writeSchema;
+
+
+        String writeSchema = job.get("iow.streaming.output.schema");
         MessageType s;
 
-        if (job.getBoolean("iow.streaming.schema.use.prefix",false)) {
-            // guess schema from file name
-            // format is: schema:filename
-            // with special keyword default - 'default:filename'
+        if (writeSchema == null) {
 
-            String str[] = name.split(":");
-            if (!str[0].equals("default"))
-                schemaFile = str[0];
+            String schemaFile = job.get("iow.streaming.output.schema.file","streaming_output_schema");
 
-            name = str[1];
-        }
+            if (job.getBoolean("iow.streaming.schema.use.prefix", false)) {
+                // guess schema from file name
+                // format is: schema:filename
+                // with special keyword default - 'default:filename'
 
-        LOG.info("Using schema: " + schemaFile);
-        File f = new File(schemaFile);
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader(f));
-            StringBuilder r = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null)
-                r.append(line);
+                String str[] = name.split(":");
+                if (!str[0].equals("default"))
+                    schemaFile = str[0];
 
-            writeSchema = r.toString();
+                name = str[1];
+            }
 
-        } catch (Throwable e) {
-            LOG.error("Can't read schema file " + schemaFile);
-            Throwables.propagateIfPossible(e, IOException.class);
-            throw new RuntimeException(e);
+            LOG.info("Using schema: " + schemaFile);
+            File f = new File(schemaFile);
+            try {
+                BufferedReader reader = new BufferedReader(new FileReader(f));
+                StringBuilder r = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null)
+                    r.append(line);
+
+                writeSchema = r.toString();
+
+            } catch (Throwable e) {
+                LOG.error("Can't read schema file " + schemaFile);
+                Throwables.propagateIfPossible(e, IOException.class);
+                throw new RuntimeException(e);
+            }
         }
         s = MessageTypeParser.parseMessageType(writeSchema);
 
@@ -134,9 +142,9 @@ public class ParquetAsTextOutputFormat<K,V> extends FileOutputFormat<K,V> {
         String extension = codec.getExtension() + ".parquet";
         Path file = getDefaultWorkFile(job, name, extension);
 
-        ParquetRecordWriter<V> realWriter;
+        ParquetRecordWriter<SimpleGroup> realWriter;
         try {
-            realWriter = (ParquetRecordWriter<V>) realOutputFormat.getRecordWriter(job, file, codec);
+            realWriter = (ParquetRecordWriter<SimpleGroup>) realOutputFormat.getRecordWriter(job, file, codec);
         } catch (InterruptedException e) {
             Thread.interrupted();
             throw new IOException(e);
@@ -145,10 +153,10 @@ public class ParquetAsTextOutputFormat<K,V> extends FileOutputFormat<K,V> {
         return createRecordWriter(realWriter, fs, job, name, progress);
     }
 
-    protected RecordWriter<K,V>
-        createRecordWriter(ParquetRecordWriter<V> w, FileSystem fs, JobConf job, String name, Progressable p)
+    protected RecordWriter<Text, Text>
+        createRecordWriter(ParquetRecordWriter<SimpleGroup> w, FileSystem fs, JobConf job, String name, Progressable p)
             throws IOException {
 
-        return new TextRecordWriterWrapper<K, V>(w, fs, job, name, p);
+        return new TextRecordWriterWrapper(w, fs, job, name, p);
     }
 }

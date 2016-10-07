@@ -18,21 +18,23 @@ package net.iponweb.hadoop.streaming.parquet;
 
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.util.Progressable;
+import org.apache.parquet.example.data.simple.SimpleGroup;
 import org.apache.parquet.hadoop.ParquetRecordWriter;
 
 import java.io.IOException;
 
-public class ParquetAsJsonOutputFormat<K, V> extends ParquetAsTextOutputFormat<K,V> {
+public class ParquetAsJsonOutputFormat extends ParquetAsTextOutputFormat {
 
     @Override
-    protected RecordWriter<K,V>
-        createRecordWriter(ParquetRecordWriter<V> w, FileSystem fs, JobConf job, String name, Progressable p)
+    protected RecordWriter<Text, Text>
+        createRecordWriter(ParquetRecordWriter<SimpleGroup> w, FileSystem fs, JobConf job, String name, Progressable p)
             throws IOException {
 
-        return new JsonRecordWriterWrapper<K, V>(w, fs, job, name, p);
+        return new JsonRecordWriterWrapper(w, fs, job, name, p);
     }
 
 }

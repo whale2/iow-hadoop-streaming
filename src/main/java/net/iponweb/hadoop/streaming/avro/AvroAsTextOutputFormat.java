@@ -22,38 +22,51 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroWrapper;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.Reporter;
 
 import java.io.IOException;
 
-public class AvroAsTextOutputFormat<K, V> extends AvroAsJsonOutputFormat<K, V> {
+public class AvroAsTextOutputFormat extends AvroAsJsonOutputFormat {
 
     protected static Log LOG = LogFactory.getLog(AvroAsTextOutputFormat.class);
     protected GenericDataTSV tsv = new GenericDataTSV();
 
     @Override
-    protected RecordWriter<K,V> createRecordWriter(final DataFileWriter w, final Schema schema){
+    protected RecordWriter<Text, NullWritable> createRecordWriter(final DataFileWriter<GenericRecord> w, final Schema schema){
 
-        return new RecordWriter<K, V>() {
-
-            private final DataFileWriter writer = w;
-
-            public void write(K key, V value)
-                throws IOException {
-
-                GenericRecord record = fromText(key.toString() + "\t" + value.toString(), schema);
-                AvroWrapper<GenericRecord> wrapper = new AvroWrapper<GenericRecord>(record);
-                writer.append(wrapper.datum());
-            }
-            public void close(Reporter reporter) throws IOException {
-                writer.close();
-            }
-
-            protected GenericRecord fromText(String v, Schema schema) throws IOException {
-
-                return tsv.getDatum(v, schema);
-            }
-        };
+        return new AvroAsTextRecordWriter<Text, NullWritable>(w, schema);
     }
+
+    protected class AvroAsTextRecordWriter<K2, V2> implements RecordWriter<K2, V2> {
+
+        private final DataFileWriter<GenericRecord> writer;
+        private final Schema schema;
+
+        public AvroAsTextRecordWriter(DataFileWriter<GenericRecord> writer, Schema schema) {
+            this.writer = writer;
+            this.schema = schema;
+        }
+
+        @Override
+        public void write(K2 k, V2 v) throws IOException {
+
+            GenericRecord record = fromText(k.toString() + "\t" + v.toString(), schema);
+            AvroWrapper<GenericRecord> wrapper = new AvroWrapper<GenericRecord>(record);
+            writer.append(wrapper.datum());
+        }
+
+        @Override
+        public void close(Reporter reporter) throws IOException {
+            writer.close();
+        }
+
+        protected GenericRecord fromText(String v, Schema schema) throws IOException {
+
+            return tsv.getDatum(v, schema);
+        }
+    }
+
 }

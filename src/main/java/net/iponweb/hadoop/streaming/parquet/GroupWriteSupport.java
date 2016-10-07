@@ -12,18 +12,22 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * This file is a modified version of GroupWriteSupport.java from original parquet source code
+ *
  */
+
+
 package net.iponweb.hadoop.streaming.parquet;
 
-import java.util.HashMap;
-
 import org.apache.hadoop.conf.Configuration;
-
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.example.data.GroupWriter;
 import org.apache.parquet.io.api.RecordConsumer;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.MessageTypeParser;
+
+import java.util.HashMap;
 
 public class GroupWriteSupport extends org.apache.parquet.hadoop.api.WriteSupport<Group> {
 

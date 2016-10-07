@@ -26,12 +26,12 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.mapred.AvroJob;
-import org.apache.avro.mapred.AvroOutputFormat;
-import org.apache.avro.mapred.AvroWrapper;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
@@ -60,26 +60,26 @@ import static org.apache.avro.file.DataFileConstants.DEFLATE_CODEC;
  * 'iow.streaming.output.schema' which defaults to 'streaming_output_schema'
  *
  *
- * @param <K>   key of streaming job
- * @param <V>   value of streaming job; both usually of Text type
  */
 
-public class AvroAsJsonOutputFormat<K, V> extends AvroOutputFormat<K> {
+public class AvroAsJsonOutputFormat extends FileOutputFormat<Text, NullWritable> {
 
     protected static Log LOG = LogFactory.getLog(AvroAsJsonOutputFormat.class);
 
-    static <T> void configureDataFileWriter(DataFileWriter<T> writer,
+    static <K> void configureDataFileWriter(DataFileWriter<K> writer,
         JobConf job) throws UnsupportedEncodingException {
 
         if (FileOutputFormat.getCompressOutput(job)) {
-            int level = job.getInt(DEFLATE_LEVEL_KEY, DEFAULT_DEFLATE_LEVEL);
+            int level = job.getInt(org.apache.avro.mapred.AvroOutputFormat.DEFLATE_LEVEL_KEY,
+                    org.apache.avro.mapred.AvroOutputFormat.DEFAULT_DEFLATE_LEVEL);
             String codecName = job.get(AvroJob.OUTPUT_CODEC, DEFLATE_CODEC);
             CodecFactory factory = codecName.equals(DEFLATE_CODEC) ?
                 CodecFactory.deflateCodec(level) : CodecFactory.fromString(codecName);
             writer.setCodec(factory);
         }
 
-        writer.setSyncInterval(job.getInt(SYNC_INTERVAL_KEY, DEFAULT_SYNC_INTERVAL));
+        writer.setSyncInterval(job.getInt(org.apache.avro.mapred.AvroOutputFormat.SYNC_INTERVAL_KEY,
+                DEFAULT_SYNC_INTERVAL));
 
         // copy metadata from job
         for (Map.Entry<String,String> e : job) {
@@ -92,13 +92,17 @@ public class AvroAsJsonOutputFormat<K, V> extends AvroOutputFormat<K> {
         }
     }
 
-    @Override
-    public RecordWriter // <K, V>
+   @Override
+    public RecordWriter<Text, NullWritable>
         getRecordWriter(FileSystem ignore, JobConf job, String name, Progressable prog)
         throws IOException {
 
-            String schemaFile = job.get("iow.streaming.output.schema", "streaming_output_schema");
-            Schema.Parser p = new Schema.Parser();
+        Schema schema;
+        Schema.Parser p = new Schema.Parser();
+        String strSchema = job.get("iow.streaming.output.schema");
+        if (strSchema == null) {
+
+            String schemaFile = job.get("iow.streaming.output.schema.file", "streaming_output_schema");
 
             if (job.getBoolean("iow.streaming.schema.use.prefix", false)) {
                 // guess schema from file name
@@ -112,49 +116,60 @@ public class AvroAsJsonOutputFormat<K, V> extends AvroOutputFormat<K> {
                 name = str[1];
             }
 
-            LOG.info("getRecordWriter: Using schema: " + schemaFile);
+            LOG.info(this.getClass().getSimpleName() + ": Using schema from file: " + schemaFile);
             File f = new File(schemaFile);
-            Schema schema = p.parse(f);
+            schema = p.parse(f);
+        }
+        else {
+            LOG.info(this.getClass().getSimpleName() + ": Using schema from jobconf.");
+            schema = p.parse(strSchema);
+        }
 
-            if (schema == null) {
-                throw new IOException("Can't find proper output schema");
-            }
+        if (schema == null) {
+            throw new IOException("Can't find proper output schema");
+        }
 
-            DataFileWriter writer = new DataFileWriter(new GenericDatumWriter());
+        DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(new GenericDatumWriter<GenericRecord>());
 
-            configureDataFileWriter(writer, job);
+        configureDataFileWriter(writer, job);
 
-            Path path = FileOutputFormat.getTaskOutputPath(job, name + EXT);
-            writer.create(schema, path.getFileSystem(job).create(path));
+        Path path = FileOutputFormat.getTaskOutputPath(job, name + org.apache.avro.mapred.AvroOutputFormat.EXT);
+        writer.create(schema, path.getFileSystem(job).create(path));
 
-            return createRecordWriter(writer,schema);
+        return createRecordWriter(writer, schema);
     }
 
-    protected RecordWriter<K, V> createRecordWriter(final DataFileWriter w, final Schema schema) {
+    protected RecordWriter<Text, NullWritable> createRecordWriter(final DataFileWriter<GenericRecord> w, final Schema schema) {
 
-        return new RecordWriter<K, V>() {
+        return new AvroAsJsonRecordWriter(w, schema);
+    }
 
-            private DataFileWriter writer = w;
+    protected class AvroAsJsonRecordWriter implements RecordWriter<Text, NullWritable> {
 
-            public void write(K key, V value)
-                throws IOException {
+        private final DataFileWriter<GenericRecord> writer;
+        private final Schema schema;
 
-                GenericRecord record = fromJson(key.toString(), schema);
-                AvroWrapper<GenericRecord> wrapper = new AvroWrapper<GenericRecord>(record);
-                writer.append(wrapper.datum());
-            }
-            public void close(Reporter reporter) throws IOException {
-                writer.close();
-            }
+        public AvroAsJsonRecordWriter(DataFileWriter<GenericRecord> writer, Schema schema) {
+            this.writer = writer;
+            this.schema = schema;
+        }
 
-            protected GenericRecord fromJson(String v, Schema schema) throws IOException {
+        @Override
+        public void write(Text k, NullWritable v) throws IOException {
+            writer.append(fromJson(k.toString(), schema));
+        }
 
-                DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(schema);
-                Decoder decoder = new IOWJsonDecoder(schema, v);
-                return reader.read(null, decoder);
-            }
-        };
+        @Override
+        public void close(Reporter reporter) throws IOException {
+            writer.close();
+        }
 
+        protected GenericRecord fromJson(String txt, Schema schema) throws IOException {
+
+            DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(schema);
+            Decoder decoder = new IOWJsonDecoder(schema, txt);
+            return reader.read(null, decoder);
+        }
     }
 
 }

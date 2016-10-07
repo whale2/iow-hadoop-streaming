@@ -19,53 +19,57 @@ package net.iponweb.hadoop.streaming.parquet;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.util.Progressable;
 import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.SimpleGroup;
 import org.apache.parquet.example.data.simple.SimpleGroupFactory;
 import org.apache.parquet.hadoop.ParquetRecordWriter;
 import org.apache.parquet.io.api.Binary;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Stack;
 
-public class TextRecordWriterWrapper<K, V> implements RecordWriter<K, V> {
+public class TextRecordWriterWrapper implements RecordWriter<Text, Text> {
 
-    protected ParquetRecordWriter<V> realWriter;
+    protected ParquetRecordWriter<SimpleGroup> realWriter;
     protected MessageType schema;
     protected SimpleGroupFactory factory;
     private static final String TAB ="\t";
     protected ArrayList<PathAction> recorder;
 
-    TextRecordWriterWrapper(ParquetRecordWriter<V> w, FileSystem fs, JobConf conf, String name, Progressable progress)
+    TextRecordWriterWrapper(ParquetRecordWriter<SimpleGroup> w, FileSystem fs, JobConf conf, String name, Progressable progress)
             throws IOException {
 
         realWriter = w;
-        schema = org.apache.parquet.hadoop.example.GroupWriteSupport.getSchema(conf);
+        schema = GroupWriteSupport.getSchema(conf);
         factory = new SimpleGroupFactory(schema);
 
-        recorder = new ArrayList<PathAction>();
-        ArrayList<String[]> Paths = (ArrayList)schema.getPaths();
+        recorder = new ArrayList<>();
+        ArrayList<String[]> Paths = (ArrayList<String[]>)schema.getPaths();
         Iterator<String[]> pi = Paths.listIterator();
 
         String[] prevPath = {};
 
+        short grpDepth = 0;
         while (pi.hasNext()) {
 
             String p[] = pi.next();
 
             // Find longest common path between prev_path and current
             ArrayList<String> commonPath = new ArrayList<String>();
-            int m = 0;
             for (int n = 0; n < prevPath.length; n++) {
                 if (n < p.length && p[n].equals(prevPath[n])) {
                     commonPath.add(p[n]);
@@ -74,14 +78,17 @@ public class TextRecordWriterWrapper<K, V> implements RecordWriter<K, V> {
             }
 
             // If current element is not inside previous group, restore to the group of common path
-            for (int n = commonPath.size(); n < prevPath.length - 1; n++)
+            for (int n = commonPath.size(); n < prevPath.length - 1; n++) {
                 recorder.add(new PathAction(PathAction.ActionType.GROUPEND));
+                grpDepth --;
+            }
 
             // If current element is not right after common path, create all required groups
             for (int n = commonPath.size(); n < p.length - 1; n++) {
                 PathAction a = new PathAction(PathAction.ActionType.GROUPSTART);
                 a.setName(p[n]);
                 recorder.add(a);
+                grpDepth ++;
             }
 
             prevPath = p;
@@ -96,6 +103,10 @@ public class TextRecordWriterWrapper<K, V> implements RecordWriter<K, V> {
 
             recorder.add(a);
         }
+
+        // Close trailing groups
+        while(grpDepth -- > 0)
+            recorder.add(new PathAction(PathAction.ActionType.GROUPEND));
     }
 
     @Override
@@ -109,17 +120,17 @@ public class TextRecordWriterWrapper<K, V> implements RecordWriter<K, V> {
     }
 
     @Override
-    public void write(K key, V value) throws IOException {
+    public void write(Text key, Text value) throws IOException {
 
         Group grp = factory.newGroup();
 
         String[] strK = key.toString().split(TAB,-1);
-        String[] strV = value.toString().split(TAB,-1);
+        String[] strV = value == null ? new String[0] : value.toString().split(TAB,-1);
         String kv_combined[] = (String[]) ArrayUtils.addAll(strK, strV);
 
         Iterator<PathAction> ai = recorder.iterator();
 
-        Stack<Group> groupStack = new Stack<Group>();
+        Stack<Group> groupStack = new Stack<>();
         groupStack.push(grp);
         int i = 0;
 
@@ -138,13 +149,14 @@ public class TextRecordWriterWrapper<K, V> implements RecordWriter<K, V> {
                         break;
 
                     case FIELD:
-                        String s;
+                        String s = null;
                         PrimitiveType.PrimitiveTypeName primType = a.getType();
                         String colName = a.getName();
 
-                        if (i < kv_combined.length) {
+                        if (i < kv_combined.length)
                             s = kv_combined[i ++];
-                        } else {
+
+                        if (s == null) {
                             if (a.getRepetition() == Type.Repetition.OPTIONAL) {
                                 i ++;
                                 continue;
@@ -159,13 +171,26 @@ public class TextRecordWriterWrapper<K, V> implements RecordWriter<K, V> {
                         ArrayList<String> s_vals = null;
                         if (a.getRepetition() == Type.Repetition.REPEATED) {
                             repeated = true;
-                            s_vals = new ArrayList();
+                            s_vals = new ArrayList<>();
                             ObjectMapper mapper = new ObjectMapper();
                             JsonNode node = mapper.readTree(s);
                             Iterator <JsonNode> itr = node.iterator();
                             repetition = 0;
                             while(itr.hasNext()) {
-                                s_vals.add(itr.next().getTextValue());  // No array-of-objects!
+
+                                String o;
+                                switch (primType) {
+                                    case BINARY:
+                                        o = itr.next().getTextValue();  // No array-of-objects!
+                                        break;
+                                    case BOOLEAN:
+                                        o = String.valueOf(itr.next().getBooleanValue());
+                                        break;
+                                    default:
+                                        o = String.valueOf(itr.next().getNumberValue());
+                                }
+
+                                s_vals.add(o);
                                 repetition ++;
                             }
                         }
@@ -181,11 +206,11 @@ public class TextRecordWriterWrapper<K, V> implements RecordWriter<K, V> {
                                 switch (primType) {
 
                                     case INT32:
-                                        grp.append(colName, Integer.parseInt(s));
+                                        grp.append(colName, new Double(Double.parseDouble(s)).intValue());
                                         break;
                                     case INT64:
                                     case INT96:
-                                        grp.append(colName, Long.parseLong(s));
+                                        grp.append(colName, new Double(Double.parseDouble(s)).longValue());
                                         break;
                                     case DOUBLE:
                                         grp.append(colName, Double.parseDouble(s));
@@ -194,7 +219,7 @@ public class TextRecordWriterWrapper<K, V> implements RecordWriter<K, V> {
                                         grp.append(colName, Float.parseFloat(s));
                                         break;
                                     case BOOLEAN:
-                                        grp.append(colName, s.equals("true") || s.equals("1"));
+                                        grp.append(colName, s.equalsIgnoreCase("true") || s.equals("1"));
                                         break;
                                     case BINARY:
                                         grp.append(colName, Binary.fromString(s));
@@ -210,11 +235,18 @@ public class TextRecordWriterWrapper<K, V> implements RecordWriter<K, V> {
                 }
             }
 
-            realWriter.write(null, (V)grp);
+            realWriter.write(null, (SimpleGroup)grp);
 
         } catch (InterruptedException e) {
             Thread.interrupted();
             throw new IOException(e);
         }
+        catch (Exception e) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            e.printStackTrace(new PrintStream(out));
+            throw new RuntimeException("Failed on record " + grp + ", schema=" + schema + ", path action=" + recorder +
+                    " exception = " + e.getClass() + ", msg=" + e.getMessage() + ", cause=" + e.getCause() + ", trace=" + out.toString());
+        }
+
     }
 }

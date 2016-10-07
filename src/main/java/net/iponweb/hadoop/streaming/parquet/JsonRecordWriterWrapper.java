@@ -1,26 +1,28 @@
 package net.iponweb.hadoop.streaming.parquet;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.Progressable;
 import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.SimpleGroup;
 import org.apache.parquet.hadoop.ParquetRecordWriter;
 import org.apache.parquet.io.InvalidRecordException;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Stack;
 
-public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V> {
+public class JsonRecordWriterWrapper extends TextRecordWriterWrapper {
 
     ObjectMapper mapper;
 
-    JsonRecordWriterWrapper(ParquetRecordWriter<V> w, FileSystem fs, JobConf conf, String name, Progressable progress)
+    JsonRecordWriterWrapper(ParquetRecordWriter<SimpleGroup> w, FileSystem fs, JobConf conf, String name, Progressable progress)
     throws IOException {
 
         super(w,fs,conf,name,progress);
@@ -29,7 +31,7 @@ public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V>
     }
 
     @Override
-    public void write(K key, V value) throws IOException {
+    public void write(Text key, Text value) throws IOException {
 
         try {
            // parse K as JSON and convert into parquet group
@@ -39,8 +41,8 @@ public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V>
 
             Iterator<PathAction> ai = recorder.iterator();
 
-            Stack<Group> savedGroup = new Stack<Group>();
-            Stack<JsonNode> savedNode = new Stack<JsonNode>();
+            Stack<Group> savedGroup = new Stack<>();
+            Stack<JsonNode> savedNode = new Stack<>();
             while (ai.hasNext()) {
 
                 PathAction a = ai.next();
@@ -81,7 +83,7 @@ public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V>
                             ArrayList<JsonNode> s_vals = null;
                             if (a.getRepetition() == Type.Repetition.REPEATED) {
                                 repeated = true;
-                                s_vals = new ArrayList();
+                                s_vals = new ArrayList<>();
                                 Iterator <JsonNode> itr = stubNode.iterator();
                                 repetition = 0;
                                 while(itr.hasNext()) {
@@ -132,7 +134,7 @@ public class JsonRecordWriterWrapper<K, V> extends TextRecordWriterWrapper<K, V>
                 }
             }
 
-            realWriter.write(null, (V)grp);
+            realWriter.write(null, (SimpleGroup) grp);
         }
         catch (InterruptedException e) {
             Thread.interrupted();

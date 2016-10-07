@@ -42,7 +42,7 @@ public class AvroAsTextInputFormat extends org.apache.avro.mapred.AvroAsTextInpu
     public RecordReader<Text, Text> getRecordReader(InputSplit split, JobConf job, Reporter reporter) throws IOException {
         reporter.setStatus(split.toString());
         try {
-            return new AvroAsTextRecordReader(job, (FileSplit) split);
+            return new AvroAsTextRecordReader<Text>(job, (FileSplit) split);
         } catch (IOException e) {
             String file = ((FileSplit) split).getPath().toString();
             log.warn("Error open avro file: ({})", file);
