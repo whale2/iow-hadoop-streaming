@@ -192,7 +192,9 @@ public class ParquetAsTextInputFormat extends org.apache.hadoop.mapred.FileInput
             }
 
             try {
-                if (!firstRecord && realReader.nextKeyValue()) {
+                if (!firstRecord ) {
+                    if(!realReader.nextKeyValue())
+                        return false;
                     SimpleGroup g = realReader.getCurrentValue();
                     ls = groupToStrings(g);
                 }
