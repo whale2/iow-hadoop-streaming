@@ -187,17 +187,19 @@ public class ParquetAsTextInputFormat extends org.apache.hadoop.mapred.FileInput
         @Override
         public boolean next(Text key, Text value) throws IOException {
 
-            if (eof) {
+            if (eof)    // The case where there are no records at all (and first record is being read in constructor)
                 return false;
-            }
 
             try {
-                if (!firstRecord && realReader.nextKeyValue()) {
+                // Remember, that we've already read the first record
+                if (!firstRecord) {
+                    if (!realReader.nextKeyValue())
+                        return false;   // eof
+
                     SimpleGroup g = realReader.getCurrentValue();
                     ls = groupToStrings(g);
                 }
-
-                if (firstRecord)
+                else
                     firstRecord = false;
 
                 if (key != null) key.set(fetchKey());

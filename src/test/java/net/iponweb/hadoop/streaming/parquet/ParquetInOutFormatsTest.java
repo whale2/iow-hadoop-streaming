@@ -19,7 +19,7 @@ public class ParquetInOutFormatsTest {
 
     private final String schema = "message test { required int32 x; required binary y; optional binary z; repeated int32 a; }";
 
-    private static String tsv = "25\twtf\t\t[1, 3, 4]";
+    private static String tsv = "25\twtf\t\t[1, 3, 4]\n273\torly\t\t[]\n31415926\twhoa\t\t[0, 9, 78, 5]\n";
     private static String json = "{\"x\": 25, \"y\": \"wtf\", \"z\": null, \"a\": [1, 3, 4]}";
 
     private static JobConf defaultConf = new JobConf();
@@ -54,7 +54,8 @@ public class ParquetInOutFormatsTest {
         RecordWriter<Text, Text> writer = outfmt.getRecordWriter(file.getFileSystem(defaultConf),
                 defaultConf, fname, new dummyReporter());
 
-        writer.write(new Text(tsv), null);
+        for(String s : tsv.split("\n"))
+            writer.write(new Text(s), null);
         writer.close(null);
 
         FileInputFormat.setInputPaths(defaultConf, outpath + "/" + fname + "-m-00000.parquet");
@@ -62,11 +63,17 @@ public class ParquetInOutFormatsTest {
         RecordReader<Text, Text> reader = informat.getRecordReader(informat.getSplits(defaultConf, 1)[0],
                 defaultConf, new dummyReporter());
 
+        StringBuilder readBack = new StringBuilder();
         Text k = new Text();
         Text v = new Text();
 
-        reader.next(k, v);
-        Assert.assertEquals("read back tsv", tsv, k.toString() + "\t" + v.toString());
+        while(reader.next(k, v)) {
+            readBack.append(k.toString());
+            readBack.append("\t");
+            readBack.append(v.toString());
+            readBack.append("\n");
+        }
+        Assert.assertEquals("read back tsv", tsv, readBack.toString());
     }
 
 
